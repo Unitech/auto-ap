@@ -108,14 +108,14 @@ class AccessPoint extends EventEmitter {
      */
     this.apProcess.stdout.on('data', (data) => {
       data = data.toString()
-      console.log(data)
+      process.stdout.write(data);
 
       if (data.indexOf('AP-ENABLED') !== -1) {
         this.apOnline = true
         this.emit('start')
 
         exec('systemctl start NetworkManager', (err, stdout, stderr) => {
-          if (err || stderr || (stderr && stderr !== '')) { this.emit('network_manager_err', err, stderr) }
+          if (err || stderr || (stderr && stderr !== '')) { console.error(stderr); this.emit('network_manager_err', err, stderr) }
         })
       }
 
@@ -130,7 +130,7 @@ class AccessPoint extends EventEmitter {
      */
     this.apProcess.stderr.on('data', data => {
       data = data.toString()
-      debug(data)
+      process.stderr.write(data);
       if (data.indexOf('run it as root') !== -1) {
         this.emit('error', new Error('Must run as root for hotspot'))
       } else if (data.indexOf('Operation not supported (-95)') !== -1 || data.indexOf('Device or resource busy') !== -1) {
@@ -173,43 +173,77 @@ class AccessPoint extends EventEmitter {
     }
   }
 
+  connectToWifi(ssid, password, cb) {
+    let stdout = '';
+    let stderr = '';
+    var add;
+    let rescan = spawn('nmcli', ['device', 'wifi', 'rescan']);
+
+    rescan.on('close', function() {
+      console.log('Rescan done')
+      add = spawn('nmcli', ['dev', 'wifi', 'con', ssid, 'password', password], {
+        shell : '/bin/bash'
+      })
+
+      this.emit('setting_network', ssid)
+
+      add.stdout.on('data', data => {
+        stdout += data.toString()
+        console.log(data.toString());
+        debug('info', 'nmcli', data.toString())
+      })
+
+      add.stderr.on('data', data => {
+        stderr += data.toString();
+        console.error(data.toString());
+        debug('err', 'nmcli', data.toString())
+      })
+
+      add.on('close', code => {
+        debug('code: ' + code)
+        if (code === 0 && stdout.indexOf('successfully activated') !== -1) {
+          // test if ip adressed
+          // check connection with DNS test?
+          this.getIpFromWlan(cb)
+          this.emit('host_connected')
+        } else if (code === 0 && stdout.indexOf('New connection activation was enqueued') !== -1) {
+          cb('connection_enqueued')
+        } else if ((code === 0 && stdout.indexOf('Secrets were required, but not provided.') !== -1) || code === 4) {
+          cb('bad_pass')
+        } else if (code === 10) {
+          cb('network_not_found')
+        } else {
+          cb(stdout, stderr)
+        }
+      })
+    })
+
+  }
+
   /**
    * Connect to target wifi network
    * @param {String} SSID Wifi SSID
    * @param {String} password Wifi Password
    */
   setNetwork (ssid, password, cb) {
-    let stdout = ''
-    let add = spawn('nmcli', ['dev', 'wifi', 'con', ssid, 'password', password])
+    var retry = 3;
+    var self = this;
 
-    this.emit('setting_network', ssid)
+    (function rec(retry) {
+      self.connectToWifi(ssid, password, function(err, res) {
+        if (err) {
+          console.error('[Network] Connect to wifi failed, retry %d/3', retry - 2);
+          if (retry <= 0)
+            return cb(err);
+          return setTimeout(function() {
+            rec(retry--)
+          }, 200);
+        }
+        console.log('[Network] Connection Successfull');
+        return cb(null, res);
+      });
+    })(retry);
 
-    add.stdout.on('data', data => {
-      stdout += data.toString()
-      debug('info', 'nmcli', data.toString())
-    })
-
-    add.stderr.on('data', data => {
-      debug('err', 'nmcli', data.toString())
-    })
-
-    add.on('close', code => {
-      debug('code: ' + code)
-      if (code === 0 && stdout.indexOf('successfully activated') !== -1) {
-        // test if ip adressed
-        // check connection with DNS test?
-        this.getIpFromWlan(cb)
-        this.emit('host_connected')
-      } else if (code === 0 && stdout.indexOf('New connection activation was enqueued') !== -1) {
-        cb('connection_enqueued')
-      } else if ((code === 0 && stdout.indexOf('Secrets were required, but not provided.') !== -1) || code === 4) {
-        cb('bad_pass')
-      } else if (code === 10) {
-        cb('network_not_found')
-      } else {
-        cb('error ' + code)
-      }
-    })
   }
 
   getInterface (name, cb) {
