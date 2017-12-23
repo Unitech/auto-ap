@@ -1,11 +1,12 @@
 
-const Network = require('./network.js');
+const Network = require('./src/network.js');
+const Api = require('./src/api.js');
 const ConnectivityWorker = require('./src/ConnectivityWorker.js');
-const Api = require('./api.js');
 
 var AutoAp = {
   init : function() {
-    console.log('[Auto AP] Starting...');
+    console.log('[Auto AP] Starting');
+
     var network = new Network({
       ap_iface : 'ap',
       password : '12345678',
@@ -17,9 +18,6 @@ var AutoAp = {
 
     connectivityworker.start();
 
-    // network.start();
-    // api.start();
-    // return;
     connectivityworker.on('change', function(old_network, new_network) {
       if (new_network == false) {
         network.start();

@@ -6,8 +6,8 @@ const spawn = require('child_process').spawn
 const exec = require('child_process').exec
 const EventEmitter = require('events')
 const debug = require('debug')('envision:access_point')
-const AP_SCRIPT = path.join(__dirname, './create_ap')
-const IFACE_SCRIPT = path.join(__dirname, './create_iface')
+const AP_SCRIPT = path.join(__dirname, './utils/create_ap')
+const IFACE_SCRIPT = path.join(__dirname, './utils/create_iface')
 
 // we can scan with `nmcli -m multiline device wifi list` instead of using iw
 // scan wifi
@@ -67,6 +67,7 @@ class AccessPoint extends EventEmitter {
         return
       }
 
+      console.log('Network interface %s', iface);
       if (err) {
         console.error(err)
         console.trace('Execution stopped')
@@ -178,6 +179,7 @@ class AccessPoint extends EventEmitter {
     let stderr = '';
     var add;
     let rescan = spawn('nmcli', ['device', 'wifi', 'rescan']);
+    var self = this;
 
     rescan.on('close', function() {
       console.log('Rescan done')
@@ -204,8 +206,8 @@ class AccessPoint extends EventEmitter {
         if (code === 0 && stdout.indexOf('successfully activated') !== -1) {
           // test if ip adressed
           // check connection with DNS test?
-          this.getIpFromWlan(cb)
-          this.emit('host_connected')
+          self.getIpFromWlan(cb)
+          self.emit('host_connected')
         } else if (code === 0 && stdout.indexOf('New connection activation was enqueued') !== -1) {
           cb('connection_enqueued')
         } else if ((code === 0 && stdout.indexOf('Secrets were required, but not provided.') !== -1) || code === 4) {

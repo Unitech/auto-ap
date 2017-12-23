@@ -11,7 +11,7 @@ class API {
 
     app.use(bodyParser.urlencoded({ extended: false }))
     app.use(bodyParser.json())
-    app.use('/', express.static(path.join(__dirname, './front')));
+    app.use('/', express.static(path.join(__dirname, '../front')));
 
     /**
      * Get networks

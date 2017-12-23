@@ -2,7 +2,7 @@
 
 'use strict'
 const EventEmitter = require('events')
-const isOnline = require('./is-online.js')
+const isOnline = require('./utils/is-online.js')
 
 /**
  * ConnectivityWorker is a worker who check internet and network.
