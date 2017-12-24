@@ -82,13 +82,13 @@ class AccessPoint extends EventEmitter {
 
       console.log('Using network interface: %s + %s', iface, ifaceTarget);
 
-      // exec('systemctl stop NetworkManager', (err, stdout, stderr) => {
-      //   if (err || stderr || (stderr && stderr !== '')) {
-      //     this.emit('network_manager_err', err, stderr)
-      //   }
+      exec('systemctl stop NetworkManager', (err, stdout, stderr) => {
+        if (err || stderr || (stderr && stderr !== '')) {
+          this.emit('network_manager_err', err, stderr)
+        }
 
-      this.launchAP(iface, ifaceTarget)
-      //})
+        this.launchAP(iface, ifaceTarget)
+      })
     })
   }
 
@@ -122,9 +122,9 @@ class AccessPoint extends EventEmitter {
       if (data.indexOf('AP-ENABLED') !== -1) {
         this.apOnline = true;
 
-        // exec('systemctl start NetworkManager', (err, stdout, stderr) => {
-        //   if (err || stderr || (stderr && stderr !== '')) { console.error(stderr); this.emit('network_manager_err', err, stderr) }
-        // })
+        exec('systemctl start NetworkManager', (err, stdout, stderr) => {
+          if (err || stderr || (stderr && stderr !== '')) { console.error(stderr); this.emit('network_manager_err', err, stderr) }
+        })
       }
 
       if (data.indexOf('STA') !== -1 && data.indexOf('associated') !== -1) {
