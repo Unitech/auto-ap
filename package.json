@@ -1,6 +1,6 @@
 {
-  "name": "auto-ap",
-  "version": "1.0.0",
+  "name": "pm2-auto-ap",
+  "version": "0.1.1",
   "description": "",
   "main": "index.js",
   "scripts": {

@@ -36,7 +36,7 @@ class ConnectivityWorker extends EventEmitter {
           this.network = network
         }
       })
-    }, 2000)
+    }, 1000)
 
     this.intervalInternet = setInterval(() => {
       isOnline((internet) => {
@@ -46,7 +46,7 @@ class ConnectivityWorker extends EventEmitter {
           this.internet = internet
         }
       })
-    }, 10000)
+    }, 1000)
 
     this.emit('start')
   }
