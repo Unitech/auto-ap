@@ -82,13 +82,13 @@ class AccessPoint extends EventEmitter {
 
       console.log('Using network interface: %s + %s', iface, ifaceTarget);
 
-      exec('systemctl stop NetworkManager', (err, stdout, stderr) => {
-        if (err || stderr || (stderr && stderr !== '')) {
-          this.emit('network_manager_err', err, stderr)
-        }
+      // exec('systemctl stop NetworkManager', (err, stdout, stderr) => {
+      //   if (err || stderr || (stderr && stderr !== '')) {
+      //     this.emit('network_manager_err', err, stderr)
+      //   }
 
-        this.launchAP(iface, ifaceTarget)
-      })
+      this.launchAP(iface, ifaceTarget)
+      //})
     })
   }
 
@@ -122,9 +122,9 @@ class AccessPoint extends EventEmitter {
       if (data.indexOf('AP-ENABLED') !== -1) {
         this.apOnline = true;
 
-        exec('systemctl start NetworkManager', (err, stdout, stderr) => {
-          if (err || stderr || (stderr && stderr !== '')) { console.error(stderr); this.emit('network_manager_err', err, stderr) }
-        })
+        // exec('systemctl start NetworkManager', (err, stdout, stderr) => {
+        //   if (err || stderr || (stderr && stderr !== '')) { console.error(stderr); this.emit('network_manager_err', err, stderr) }
+        // })
       }
 
       if (data.indexOf('STA') !== -1 && data.indexOf('associated') !== -1) {
@@ -185,12 +185,16 @@ class AccessPoint extends EventEmitter {
     var self = this;
     var code = 0;
 
-    exec(`nmcli dev wifi con ${ssid} password ${password}`, function(err, stdout, stderr) {
+    exec(`nmcli dev wifi con "${ssid}" password ${password}`, function(err, stdout, stderr) {
+      console.error('STDOUT=');
       console.log(stdout);
 
       if (err) {
+        console.error('STDERRR=');
         console.error(stderr);
+        console.error('CODE=');
         code = err.code;
+        console.log(code);
       }
 
       if (stdout.indexOf('successfully activated') !== -1) {
@@ -208,7 +212,7 @@ class AccessPoint extends EventEmitter {
 
       console.log('+--- Trying to connect');
 
-      exec(`nmcli con up ${ssid}`, function(err, stdout, stderr) {
+      exec(`nmcli con up "${ssid}"`, function(err, stdout, stderr) {
         if (err) {
           console.error(err);
           return cb(new Error('All strategies failed'));
