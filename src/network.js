@@ -8,6 +8,7 @@ const EventEmitter = require('events')
 const debug = require('debug')('envision:access_point')
 const AP_SCRIPT = path.join(__dirname, './utils/create_ap')
 const IFACE_SCRIPT = path.join(__dirname, './utils/create_iface')
+const wifi_cli = require('wifi-cli');
 
 // we can scan with `nmcli -m multiline device wifi list` instead of using iw
 // scan wifi
@@ -38,13 +39,6 @@ class AccessPoint extends EventEmitter {
     this.apProcess = null
     this.cachedNetworks = null
     this.stopAutoDiscovery = false
-
-    exec('systemctl start NetworkManager', (err, stdout, stderr) => {
-      if (err) {
-        console.error(stderr);
-        console.error(err);
-      }
-    })
 
     process.on('uncaughtException', () => {
       this.stop();
@@ -122,9 +116,9 @@ class AccessPoint extends EventEmitter {
       if (data.indexOf('AP-ENABLED') !== -1) {
         this.apOnline = true;
 
-        // exec('systemctl start NetworkManager', (err, stdout, stderr) => {
-        //   if (err || stderr || (stderr && stderr !== '')) { console.error(stderr); this.emit('network_manager_err', err, stderr) }
-        // })
+        exec('systemctl start NetworkManager', (err, stdout, stderr) => {
+          if (err || stderr || (stderr && stderr !== '')) { console.error(stderr); this.emit('network_manager_err', err, stderr) }
+        })
       }
 
       if (data.indexOf('STA') !== -1 && data.indexOf('associated') !== -1) {
@@ -185,42 +179,68 @@ class AccessPoint extends EventEmitter {
     var self = this;
     var code = 0;
 
-    exec(`nmcli dev wifi con "${ssid}" password ${password}`, function(err, stdout, stderr) {
-      console.error('STDOUT=');
-      console.log(stdout);
+    console.log('Executing command', cmd);
 
-      if (err) {
-        console.error('STDERRR=');
-        console.error(stderr);
-        console.error('CODE=');
-        code = err.code;
-        console.log(code);
-      }
-
-      if (stdout.indexOf('successfully activated') !== -1) {
-        // test if ip adressed
-        // check connection with DNS test?
-        return self.getIpFromWlan(cb)
-      }
-
-      if (code === 4) {
-        return cb('bad_pass')
-      }
-      else if (code === 10) {
-        return cb('network_not_found');
-      }
-
-      console.log('+--- Trying to connect');
-
-      exec(`nmcli con up "${ssid}"`, function(err, stdout, stderr) {
-        if (err) {
-          console.error(err);
-          return cb(new Error('All strategies failed'));
-        }
-        return cb(null, 'Success');
+    wifi_cli.connect(ssid, password)
+      .then(function(result) {
+        console.log('Success', result);
+        return cb(null, result);
+      })
+      .catch((e) => {
+        console.error('Error', e);
+        return cb(e);
       });
+    // shelljs.exec(cmd, { silent : true }, (code, stdout, stderr) => {
+    //   if (code) {
+    //     console.log(stderr);
+    //     console.log('Code %d', ret.code);
+    //     return cb(new Error(ret.stderr));
+    //   }
+    //   console.log('Success');
+    // });
 
-    });
+
+
+    console.log(ret.stdout);
+    return self.getIpFromWlan(cb)
+
+
+    // , function(err, stdout, stderr) {
+    //   console.error('STDOUT=');
+    //   console.log(stdout);
+
+    //   if (err) {
+    //     console.error('STDERRR=');
+    //     console.error(stderr);
+    //     console.error('CODE=');
+    //     code = err.code;
+    //     console.log(code);
+    //   }
+
+    //   if (stdout.indexOf('successfully activated') !== -1) {
+    //     // test if ip adressed
+    //     // check connection with DNS test?
+    //     return self.getIpFromWlan(cb)
+    //   }
+
+    //   if (code === 4) {
+    //     return cb('bad_pass')
+    //   }
+    //   else if (code === 10) {
+    //     return cb('network_not_found');
+    //   }
+
+    //   console.log('+--- Trying to connect');
+
+    //   exec(`nmcli con up "${ssid}"`, function(err, stdout, stderr) {
+    //     if (err) {
+    //       console.error(err);
+    //       return cb(new Error('All strategies failed'));
+    //     }
+    //     return cb(null, 'Success');
+    //   });
+
+    // });
   }
 
 /**
