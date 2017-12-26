@@ -3,6 +3,7 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const bodyParser = require('body-parser');
+const os = require('os');
 
 class API {
   constructor(ap) {
@@ -12,6 +13,17 @@ class API {
     app.use(bodyParser.urlencoded({ extended: false }))
     app.use(bodyParser.json())
     app.use('/', express.static(path.join(__dirname, '../front')));
+
+
+    app.get('/host_info', (req, res) => {
+      res.json({
+        hostname : os.hostname()
+      });
+    })
+
+    app.get('/is_connected', (req, res) => {
+      res.json('Host is already connected');
+    })
 
     /**
      * Get networks
@@ -48,12 +60,10 @@ class API {
       res.header('Access-Control-Allow-Headers', req.get('Access-Control-Request-Headers'))
       ap.setNetwork(ssid, password, (err, ip) => {
         if (err) {
-          console.trace('setWifiNetwork')
-          console.error(err)
           return res.status(400).json({ msg: err })
         }
-        ap.stop()
 
+        ap.stop()
         res.json({
           ip: ip
         })

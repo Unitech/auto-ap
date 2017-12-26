@@ -1,6 +1,6 @@
 {
   "name": "pm2-auto-ap",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -18,6 +18,6 @@
     "axios": "*",
     "express": "^4.16.2",
     "wireless-tools": "^0.19.0",
-    "wifi-cli": "latest"
+    "shelljs": "latest"
   }
 }

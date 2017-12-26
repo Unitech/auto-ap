@@ -2,15 +2,22 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Dashboard settings</title>
+    <title>Auto AP</title>
     <meta name="viewport" content="width=device-width, user-scalable=no">
     <link rel="stylesheet" type="text/css" href="master.css">
     <script type="text/javascript" src="jquery-3.1.1.min.js"></script>
     <script type="text/javascript" src="main.js"></script>
   </head>
   <body>
+
+    <h3>Wifi Configuration AP Mode</h3>
     <div id="loading">
-      <p id="loading_text">Searching networks...</p>
+      <p id="loading_text">
+        <center>
+          <img src="/Radio.gif" width="50"/><br/>
+          ...Loading...
+        </center>
+      </p>
     </div>
     <div id="form" class="form">
       <p>Select network</p>
@@ -21,6 +28,8 @@
     </div>
     <div id="success" class="success">
       <p id="success_text">Yeah!</p>
+    </div>
+    <div id="blind_mode">
     </div>
     <div id="settings" style="display:none">
       <ul id="dashboards">

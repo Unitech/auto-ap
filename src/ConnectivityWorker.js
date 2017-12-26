@@ -23,32 +23,14 @@ class ConnectivityWorker extends EventEmitter {
    * Start worker.
    */
   start () {
-    this.intervalNetwork = setInterval(() => {
-      isOnline.local((network) => {
-        if (this.network !== network && this.networkTests < 5) {
-          this.networkTests++
-          return
-        }
-        this.networkTests = 0
-        if (this.network !== network) {
-          this.emit('change', this.internet, network)
-          this.emit('networkChange', this.network, network)
-          this.network = network
-        }
-      })
-    }, 1000)
-
     this.intervalInternet = setInterval(() => {
       isOnline((internet) => {
         if (this.internet !== internet) {
           this.emit('change', this.network, internet)
-          this.emit('internetChange', this.internet, internet)
           this.internet = internet
         }
       })
     }, 1000)
-
-    this.emit('start')
   }
 
   /**

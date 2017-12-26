@@ -1,44 +1,18 @@
-/* eslint-disable standard/no-callback-literal */
-
 const path = require('path')
 const os = require('os')
-const spawn = require('child_process').spawn
-const exec = require('child_process').exec
-const EventEmitter = require('events')
 const debug = require('debug')('envision:access_point')
+const spawn = require('child_process').spawn
 const AP_SCRIPT = path.join(__dirname, './utils/create_ap')
 const IFACE_SCRIPT = path.join(__dirname, './utils/create_iface')
-const wifi_cli = require('wifi-cli');
-
-// we can scan with `nmcli -m multiline device wifi list` instead of using iw
-// scan wifi
+const shelljs = require('shelljs');
 const iw = require('wireless-tools/iw')
-// list interfaces
 const ifconfig = require('wireless-tools/ifconfig')
 
-/**
- * AccessPoint class
- * Allow to switch network card in access point mode and
- * connect to desired Wifi
- *
- * Event emitted:
- * - station
- * - setting_network
- * - host_connected
- * - network_manager_err
- * - start
- * - error
- * - stop
- *
- */
-class AccessPoint extends EventEmitter {
+class AccessPoint {
   constructor (config) {
-    super()
-
     this.apOnline = false
     this.apProcess = null
-    this.cachedNetworks = null
-    this.stopAutoDiscovery = false
+    this.appSsidName = os.hostname() + '-ap';
 
     process.on('uncaughtException', () => {
       this.stop();
@@ -74,15 +48,9 @@ class AccessPoint extends EventEmitter {
         return console.error(err);
       }
 
-      console.log('Using network interface: %s + %s', iface, ifaceTarget);
-
-      // exec('systemctl stop NetworkManager', (err, stdout, stderr) => {
-      //   if (err || stderr || (stderr && stderr !== '')) {
-      //     this.emit('network_manager_err', err, stderr)
-      //   }
+      console.log('[Network] Using network interface: %s + %s', iface, ifaceTarget);
 
       this.launchAP(iface, ifaceTarget)
-      //})
     })
   }
 
@@ -97,72 +65,35 @@ class AccessPoint extends EventEmitter {
       return
     }
 
-    debug('Launching Access Point script')
+    debug('[Network][AP] Launching Access Point script')
 
     this.apProcess = spawn(AP_SCRIPT, [
       '-n',
       iface,
       '--redirect-to-localhost',
-      os.hostname() // SSID
+      this.appSsidName // SSID
     ])
 
-    /**
-     * Process access point script output
-     */
     this.apProcess.stdout.on('data', (data) => {
       data = data.toString()
       process.stdout.write(data);
 
       if (data.indexOf('AP-ENABLED') !== -1) {
         this.apOnline = true;
-
-        exec('systemctl start NetworkManager', (err, stdout, stderr) => {
-          if (err || stderr || (stderr && stderr !== '')) { console.error(stderr); this.emit('network_manager_err', err, stderr) }
-        })
       }
 
       if (data.indexOf('STA') !== -1 && data.indexOf('associated') !== -1) {
-        debug(`[AP] Station connected`)
+        console.log(`[Network][AP] Station connected`)
       }
     })
 
-    /**
-     * Process access point script errput
-     */
     this.apProcess.stderr.on('data', data => {
       data = data.toString()
-      process.stderr.write(data);
-
-      // if (data.indexOf('run it as root') !== -1) {
-      //   this.emit('error', new Error('Must run as root for hotspot'))
-      // } else if (data.indexOf('Operation not supported (-95)') !== -1 || data.indexOf('Device or resource busy') !== -1) {
-      //   this.apProcess.on('close', () => {
-      //     exec('systemctl stop NetworkManager', (err, stdout, stderr) => {
-      //       if (err || stderr || (stderr && stderr !== '')) {
-      //         this.emit('network_manager_err', err, stderr)
-      //       }
-      //       this.start(ifaceTarget)
-      //     })
-      //   })
-      // } else if (data.indexOf(' is not a WiFi interface') !== -1) {
-      //   // stop NetworkManager
-      //   exec('systemctl stop NetworkManager', (err, stdout, stderr) => {
-      //     if (err || stderr || (stderr && stderr !== '')) {
-      //       this.emit('network_manager_err', err, stderr)
-      //     }
-      //     // create ap interface
-      //     exec(IFACE_SCRIPT, () => {
-      //       // try to recreate hotspot
-      //       this.start(ifaceTarget)
-      //     })
-      //   })
-      // } else {
-      //   debug(`[AP] ${data}`)
-      // }
+      process.stderr.write('[Network][AP] ' + data.toString());
     })
 
     this.apProcess.on('close', (code) => {
-      console.log('Access point stopped');
+      console.log('[Network][AP] Access point stopped');
       this.apOnline = false
       this.apProcess = null
     })
@@ -175,154 +106,119 @@ class AccessPoint extends EventEmitter {
     }
   }
 
-  connectToWifi(ssid, password, cb) {
+  // This is a blind connection
+  // It disables AP then connect
+  delayedConnection(ssid, password, cb) {
+    console.log('[Network] Blind connection. Now disabling AP...');
+
+    this.apProcess.kill('SIGINT');
+    this.apOnline = null;
+
+    setTimeout(function() {
+      console.log('[Network] Now connect to WIFI with auth info provided...');
+      var cmd = `nmcli device wifi con "${ssid}" password "${password}"`;
+
+      shelljs.exec(cmd, { silent : true }, (code, stdout, stderr) => {
+        if (code) {
+          console.log(stderr);
+          console.log('[Network] Fallback connect has failed...');
+          return cb(stderr);
+        }
+        console.log('[Network] Fallback connect has succeeded!');
+        return cb(null, stdout);
+      });
+    }, 2000);
+  }
+
+  /**
+   * Connect to target wifi network
+   * @param {String} SSID Wifi SSID
+   * @param {String} password Wifi Password
+   */
+  setNetwork (ssid, password, cb) {
     var self = this;
     var code = 0;
 
+    var cmd = `nmcli device wifi con "${ssid}" password "${password}"`;
+
     console.log('Executing command', cmd);
 
-    wifi_cli.connect(ssid, password)
-      .then(function(result) {
-        console.log('Success', result);
-        return cb(null, result);
-      })
-      .catch((e) => {
-        console.error('Error', e);
-        return cb(e);
-      });
-    // shelljs.exec(cmd, { silent : true }, (code, stdout, stderr) => {
-    //   if (code) {
-    //     console.log(stderr);
-    //     console.log('Code %d', ret.code);
-    //     return cb(new Error(ret.stderr));
-    //   }
-    //   console.log('Success');
-    // });
+    // Try first to connect while in AP MODE
+    // Sometime connecting with AP MODE Direrctly might not work (nanopi, asus rpi...)
+    shelljs.exec(cmd, { silent : true }, (code, stdout, stderr) => {
+      if (code) {
+        console.log(stderr);
 
+        self.delayedConnection(ssid, password, function(err) {
+          if (err) {
+            // Ok Still cannot connect, maybe password is wrong
+            // Start AP again
+            return self.start()
+          }
+        });
 
-
-    console.log(ret.stdout);
-    return self.getIpFromWlan(cb)
-
-
-    // , function(err, stdout, stderr) {
-    //   console.error('STDOUT=');
-    //   console.log(stdout);
-
-    //   if (err) {
-    //     console.error('STDERRR=');
-    //     console.error(stderr);
-    //     console.error('CODE=');
-    //     code = err.code;
-    //     console.log(code);
-    //   }
-
-    //   if (stdout.indexOf('successfully activated') !== -1) {
-    //     // test if ip adressed
-    //     // check connection with DNS test?
-    //     return self.getIpFromWlan(cb)
-    //   }
-
-    //   if (code === 4) {
-    //     return cb('bad_pass')
-    //   }
-    //   else if (code === 10) {
-    //     return cb('network_not_found');
-    //   }
-
-    //   console.log('+--- Trying to connect');
-
-    //   exec(`nmcli con up "${ssid}"`, function(err, stdout, stderr) {
-    //     if (err) {
-    //       console.error(err);
-    //       return cb(new Error('All strategies failed'));
-    //     }
-    //     return cb(null, 'Success');
-    //   });
-
-    // });
+        return cb('Blind mode connection with SSID=' + ssid + ' PASSWORD=' + password);
+      }
+      console.log('[Network] Auto connect has been a success');
+      return self.getIpFromWlan(cb)
+    });
   }
 
-/**
- * Connect to target wifi network
- * @param {String} SSID Wifi SSID
- * @param {String} password Wifi Password
- */
-setNetwork (ssid, password, cb) {
-  var retry = 3;
-  var self = this;
-
-  (function rec(retry) {
-    self.connectToWifi(ssid, password, function(err, res) {
+  getInterface (name, cb) {
+    ifconfig.status((err, status) => {
       if (err) {
-        console.error('[Network] Connect to wifi failed, retry %d/3', retry);
-        if (retry <= 0)
-          return cb(err);
-        return setTimeout(function() {
-          rec(retry--)
-        }, 200);
+        console.error(err);
+        return cb('no_ifconfig')
       }
-      return cb(null, res);
-    });
-  })(retry);
 
-}
-
-getInterface (name, cb) {
-  ifconfig.status((err, status) => {
-    if (err) {
-      console.error(err);
-      return cb('no_ifconfig')
-    }
-
-    for (let i = 0; i < status.length; i++) {
-      status[i].interface = status[i].interface.replace(':', '')
-      if (status[i].interface.indexOf(name) !== -1) {
-        debug('Wifi card detected', status[i])
-        return cb(null, status[i].interface)
+      for (let i = 0; i < status.length; i++) {
+        status[i].interface = status[i].interface.replace(':', '')
+        if (status[i].interface.indexOf(name) !== -1) {
+          debug('Wifi card detected', status[i])
+          return cb(null, status[i].interface)
+        }
       }
-    }
-    return cb('no_interface')
-  })
-}
+      return cb('no_interface')
+    })
+  }
 
-getIpFromWlan (cb) {
-  this.getInterface('wl', (err, iface) => {
-    if (err) return cb(err)
-
-    this.getIPv4FromInterface(iface, cb)
-  })
-}
-
-getNetworks (cb) {
-  this.getInterface('wl', (err, iface) => {
-    if (err) { return cb(err) }
-
-    iw.scan({ iface: iface }, (err, networks) => {
-      if (err && err.code === 127) return cb('package_missing')
-
+  getIpFromWlan (cb) {
+    this.getInterface('wl', (err, iface) => {
       if (err) return cb(err)
 
-      return cb(null, networks)
+      this.getIPv4FromInterface(iface, cb)
     })
-  })
-}
-
-getStatus () {
-  return this.apOnline
-}
-
-getIPv4FromInterface (iface, cb) {
-  const addresses = os.networkInterfaces()[iface]
-  if (!addresses) {
-    return
   }
-  for (let i = 0; i < addresses.length; i++) {
-    if (addresses[i].family === 'IPv4') {
-      return cb(null, addresses[i].address)
+
+  getNetworks (cb) {
+    this.getInterface('wl', (err, iface) => {
+      if (err) { return cb(err) }
+
+      iw.scan({ iface: iface }, (err, networks) => {
+        if (err && err.code === 127) return cb('package_missing')
+
+        if (err) return cb(err)
+
+        return cb(null, networks)
+      })
+    })
+  }
+
+  getStatus () {
+    return this.apOnline
+  }
+
+  getIPv4FromInterface (iface, cb) {
+    const addresses = os.networkInterfaces()[iface]
+    if (!addresses) {
+      return
+    }
+    for (let i = 0; i < addresses.length; i++) {
+      if (addresses[i].family === 'IPv4') {
+        return cb(null, addresses[i].address)
+      }
     }
   }
-}
 }
 
 module.exports = AccessPoint

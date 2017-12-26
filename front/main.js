@@ -1,5 +1,3 @@
-var currentDash;
-var currentHost;
 
 $.ajax({
   url: '/networks/status',
@@ -26,7 +24,7 @@ $.ajax({
       });
     } else {
       // Home page of dashboard, informations or something else?
-      window.location = '/play';
+      window.location = '/is_connected';
     }
   }
 });
@@ -34,7 +32,7 @@ $.ajax({
 function send () {
   document.getElementById('form').style.display = 'none';
   document.getElementById('loading').style.display = 'block';
-  document.getElementById('loading_text').innerHTML = 'Connecting...';
+
   $.ajax({
     type: 'POST',
     url: '/networks',
@@ -46,14 +44,11 @@ function send () {
     }),
     success: function (json) {
       if (json.err) {
-        if (json.err == 'bad_pass') {
-          alert('The password provided is incorrect or the authentication is not supported.');
-        } else if (json.err == 'connection_enqueued') {
-          alert('You just have pressed this button, please wait...');
-        } else if (json.err == 'network_not_found') {
-          alert('The network provided cannot be found. Please check signal quality.');
-        } else if (json.err == 'no_ip') {
-          alert('The dashboard cannot get ip. Please check your DHCP.');
+        if (json.err.indexOf('Blind mode') > -1) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('form').style.display = 'none';
+          document.getElementById('success').style.display = 'none';
+          document.getElementById('blind_mode').innerHTML = json.err;
         } else {
           alert('Unknown error: ' + json.err);
         }
@@ -67,14 +62,11 @@ function send () {
       }
     },
     error: function (data) {
-      if (data.responseJSON.msg === 'bad_pass') {
-        alert('The password provided is incorrect or the authentication is not supported.')
-      } else if (data.responseJSON.msg === 'connection_enqueued') {
-        alert('You just have pressed this button, please wait...')
-      } else if (data.responseJSON.msg === 'network_not_found') {
-        alert('The network provided cannot be found. Please check signal quality.')
-      } else if (data.responseJSON.msg === 'no_ip') {
-        alert('The dashboard cannot get ip. Please check your DHCP.')
+      if (data.responseJSON.msg.indexOf('Blind mode') > -1) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('form').style.display = 'none';
+        document.getElementById('success').style.display = 'none';
+        document.getElementById('blind_mode').innerHTML = data.responseJSON;
       } else {
         alert('Unknown error: ' + data.responseJSON.msg)
       }
@@ -82,17 +74,4 @@ function send () {
       document.getElementById('form').style.display = 'block'
     }
   })
-}
-function urlSend (evt) {
-  if (evt.key == 'Enter' || evt.keyCode == 13) {
-    $.ajax({
-      type: 'POST',
-      url: currentDash + '/browser/url',
-      dataType: 'json',
-      contentType: 'application/json',
-      data: JSON.stringify({
-        url: document.getElementById('url').value
-      })
-    });
-  }
 }
