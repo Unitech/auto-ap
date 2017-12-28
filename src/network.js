@@ -146,7 +146,7 @@ class AccessPoint {
     // Try first to connect while in AP MODE
     // Sometime connecting with AP MODE Direrctly might not work (nanopi, asus rpi...)
     shelljs.exec(cmd, { silent : true }, (code, stdout, stderr) => {
-      if (code) {
+      if (code || stdout.indexOf('successfully activated') == -1) {
         console.log(stderr);
 
         self.delayedConnection(ssid, password, function(err) {
