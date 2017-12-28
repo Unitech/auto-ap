@@ -14,7 +14,6 @@ class API {
     app.use(bodyParser.json())
     app.use('/', express.static(path.join(__dirname, '../front')));
 
-
     app.get('/host_info', (req, res) => {
       res.json({
         hostname : os.hostname()
@@ -22,7 +21,12 @@ class API {
     })
 
     app.get('/is_connected', (req, res) => {
-      res.json('Host is already connected');
+      ap.getIpFromWlan(function(err, data) {
+        res.send({
+          connected : true,
+          ip : data
+        });
+      })
     })
 
     /**

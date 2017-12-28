@@ -1,4 +1,5 @@
 
+
 $.ajax({
   url: '/networks/status',
   success: function (json) {
@@ -43,35 +44,20 @@ function send () {
       pwd: document.getElementById('password').value
     }),
     success: function (json) {
-      if (json.err) {
-        if (json.err.indexOf('Blind mode') > -1) {
-          document.getElementById('loading').style.display = 'none';
-          document.getElementById('form').style.display = 'none';
-          document.getElementById('success').style.display = 'none';
-          document.getElementById('blind_mode').innerHTML = json.err;
-        } else {
-          alert('Unknown error: ' + json.err);
-        }
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('form').style.display = 'block';
-      } else {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('form').style.display = 'none';
-        document.getElementById('success').style.display = 'block';
-        document.getElementById('success_text').innerHTML += ' dashboard ip: ' + json.ip;
-      }
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('form').style.display = 'none';
+      document.getElementById('success').style.display = 'block';
+      document.getElementById('success_text').innerHTML += ' dashboard ip: ' + json.ip;
     },
     error: function (data) {
       if (data.responseJSON.msg.indexOf('Blind mode') > -1) {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('form').style.display = 'none';
         document.getElementById('success').style.display = 'none';
-        document.getElementById('blind_mode').innerHTML = data.responseJSON;
+        document.getElementById('blind_mode').innerHTML = data.responseJSON.msg;
       } else {
         alert('Unknown error: ' + data.responseJSON.msg)
       }
-      document.getElementById('loading').style.display = 'none'
-      document.getElementById('form').style.display = 'block'
     }
   })
 }

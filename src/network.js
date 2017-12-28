@@ -164,7 +164,7 @@ class AccessPoint {
           }
         });
 
-        return cb('Blind mode connection with SSID=' + ssid + ' PASSWORD=' + password);
+        return cb('Blind mode connection with SSID=' + ssid + '.<br/>Please reconnect in 30 seconds');
       }
       console.log('[Network] Auto connect has been a success');
       return self.getIpFromWlan(cb)
