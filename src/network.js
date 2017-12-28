@@ -110,7 +110,7 @@ class AccessPoint {
   // It disables AP then connect
   delayedConnection(ssid, password, cb) {
     console.log('[Network] Blind connection. Now disabling AP...');
-
+    var self = this;
     this.apProcess.kill('SIGINT');
     this.apOnline = null;
 
@@ -124,8 +124,15 @@ class AccessPoint {
           console.log('[Network] Fallback connect has failed...');
           return cb(stderr);
         }
+
         console.log('[Network] Fallback connect has succeeded!');
-        return cb(null, stdout);
+        console.log('[Network] Now forcing connection up');
+        shelljs.exec(`nmcli con up ${ssid}`, { silent : true }, (code, stdout, stderr) => {
+          self.getIpFromWlan(function(err, ip) {
+            console.log(`[Network] Connected with ip=${ip}`);
+            return cb(null, stdout);
+          })
+        });
       });
     }, 2000);
   }
